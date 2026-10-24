@@ -7,7 +7,7 @@
       "devDependencies": {
         "@eslint/js": "~9.39.5",
         "@sudobility/di": "^1.5.79",
-        "@sudobility/shaperouter_types": "^0.0.15",
+        "@sudobility/shaperouter_types": "^0.0.16",
         "@sudobility/types": "^1.9.76",
         "@tanstack/react-query": "~5.104.5",
         "@testing-library/dom": "~10.4.2",
@@ -27,7 +27,7 @@
         "vitest": "~4.1.12",
       },
       "peerDependencies": {
-        "@sudobility/shaperouter_types": "^0.0.15",
+        "@sudobility/shaperouter_types": "^0.0.16",
         "@sudobility/types": "^1.9.76",
         "@tanstack/react-query": ">=5.0.0",
         "react": ">=18.0.0",
@@ -381,7 +381,7 @@
 
     "@sudobility/di": ["@sudobility/di@1.5.79", "https://npm.pkg.github.com/download/@sudobility/di/1.5.79/1035c3304c3dc33d7b5b38b38ba6d6fe8c3dbd60", { "peerDependencies": { "@notifee/react-native": ">=7.0.0", "@react-native-async-storage/async-storage": ">=1.19.0", "@react-native-community/netinfo": ">=9.0.0", "@react-native-firebase/analytics": ">=18.0.0", "@react-native-firebase/app": ">=18.0.0", "@react-native-firebase/messaging": ">=18.0.0", "@sudobility/types": "^1.9.76", "firebase": ">=11.0.0", "react": ">=18.0.0", "react-native": ">=0.70.0" } }, "sha512-2y+YqxNN7lhrbtwKGPKemf/jOJ7RKj8Jm3+9cnSKtiaRf7M2MIEiXQCsF1pF2M6SerzwsUfFbYDVQkfl6qWbzA=="],
 
-    "@sudobility/shaperouter_types": ["@sudobility/shaperouter_types@0.0.15", "https://npm.pkg.github.com/download/@sudobility/shaperouter_types/0.0.15/75b15ecba4680588511fe193951e49310997dfe8", { "peerDependencies": { "@sudobility/shapeshyft_engine": "^1.0.12", "@sudobility/types": "^1.9.76" } }, "sha512-4gz2rdSy4p6r7L0NRO5Bc5huHhetPVE2oER863/+vtX49kRu8YUZKyADiOtC/okEi88UwKIZWeTXUBbb7TNnJQ=="],
+    "@sudobility/shaperouter_types": ["@sudobility/shaperouter_types@0.0.16", "https://npm.pkg.github.com/download/@sudobility/shaperouter_types/0.0.16/69a6522d000ecafc7b6fb55982086322cbb8de14", { "peerDependencies": { "@sudobility/shapeshyft_engine": "^1.0.13", "@sudobility/types": "^1.9.76" } }, "sha512-2rw7ccHM5xy6Z/LTInRX/O/o2hUpMKaDn08AFA3vZpUkp8mChQM4cYmBX22aurDxftVy6pJeJjU5bkAKJtaHMA=="],
 
     "@sudobility/shapeshyft_engine": ["@sudobility/shapeshyft_engine@1.0.12", "https://npm.pkg.github.com/download/@sudobility/shapeshyft_engine/1.0.12/eb2fc50373abd3808ed16f948001f6e091ddea52", { "dependencies": { "@sudobility/types": "^1.9.72" }, "peerDependencies": { "@anthropic-ai/sdk": "^0.39.0", "@google/generative-ai": "^0.21.0", "groq-sdk": "^0.37.0", "openai": "^4.77.0", "sharp": "^0.35.4" } }, "sha512-gNVH89kzF7eVTwW+nXNKh1+eCEyjv3yluiiYUAw+xJfYsqbcKliMOFCT2Bs8RGczFC1juUCOscwbFlhCSlhsHA=="],
 
