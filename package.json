@@ -1,6 +1,6 @@
 {
   "name": "@sudobility/shaperouter_client",
-  "version": "0.0.25",
+  "version": "0.0.26",
   "description": "React client library for ShapeRouter API with TanStack Query hooks",
   "type": "module",
   "main": "dist/index.js",
@@ -43,7 +43,7 @@
   },
   "devDependencies": {
     "@eslint/js": "~10.0.1",
-    "@sudobility/di": "^1.5.81",
+    "@sudobility/di": "^1.5.82",
     "@sudobility/shaperouter_types": "^0.0.16",
     "@sudobility/types": "^1.9.76",
     "@tanstack/react-query": "~5.104.5",
