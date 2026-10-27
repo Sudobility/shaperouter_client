@@ -1,6 +1,6 @@
 {
   "name": "@sudobility/shaperouter_client",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "description": "React client library for ShapeRouter API with TanStack Query hooks",
   "type": "module",
   "main": "dist/index.js",
