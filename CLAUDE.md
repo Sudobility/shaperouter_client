@@ -1,397 +1,103 @@
 # ShapeRouter Client
 
-> **Git policy — never auto-commit or auto-push.** Leave your work in the working tree.
-> Run `git commit`, `git push`, `gh pr create`, or `scripts/push_all.sh` **only when the user
-> explicitly asks in that turn**. Approval for an earlier change does not carry forward, and
-> finishing a task is not permission to commit it.
+> **Git policy — never auto-commit or auto-push.** Leave work in the working tree.
+> Run `git commit` / `git push` / `gh pr create` only when the user explicitly asks
+> in that turn. Finishing a task is not permission to commit. Stay on the current
+> branch; do not create feature branches for code changes.
 
-React client library for ShapeRouter API with TanStack Query hooks (v0.0.74).
+React client library for the ShapeRouter API: a `ShapeRouterClient` API class plus
+TanStack Query hooks that wrap it. Package: `@sudobility/shaperouter_client`.
 
-**npm**: `@sudobility/shaperouter_client`
+## Stack
 
-## Tech Stack
+- TypeScript (strict), **ESM only**, target ES2020, `moduleResolution: "bundler"`.
+- Runtime / package manager: **Bun** (do not use npm/yarn/pnpm to install).
+- Build: `tsc` + a post-build ESM-import fixup script.
+- Server state: TanStack React Query 5. Peer dep: React >= 18.
+- Tests: Vitest + React Testing Library in jsdom.
 
-- **Language**: TypeScript (strict mode, ES2020 target)
-- **Runtime**: Bun
-- **Package Manager**: Bun (do not use npm/yarn/pnpm for installing dependencies)
-- **Build**: TypeScript compiler (tsc)
-- **Server State**: TanStack React Query 5
-- **Testing**: Vitest with React Testing Library
-- **Module**: ESM (ES2020 ESNext)
-
-## Project Structure
-
-```
-src/
-├── index.ts                    # Public exports (hooks, network, utils, types)
-├── types.ts                    # QUERY_KEYS constant + FirebaseIdToken type
-├── hooks/
-│   ├── index.ts               # Exports all hooks
-│   ├── useKeys.ts             # LLM API key CRUD
-│   ├── useKeys.test.ts
-│   ├── useProjects.ts         # Project CRUD + API key operations
-│   ├── useProjects.test.ts
-│   ├── useEndpoints.ts        # Endpoint CRUD within a project
-│   ├── useEndpoints.test.ts
-│   ├── useAnalytics.ts        # Usage analytics (query only)
-│   ├── useAnalytics.test.ts
-│   ├── useSettings.ts         # User settings (upsert, optimistic update)
-│   ├── useSettings.test.ts
-│   ├── useAiExecute.ts        # AI endpoint execution (mutation only, no caching)
-│   ├── useAiExecute.test.ts
-│   ├── useEntities.ts         # Entity/org CRUD + members + invitations
-│   ├── useProviders.ts        # Public provider list + provider models
-│   └── useStorageConfig.ts    # Entity storage config CRUD
-├── network/
-│   ├── index.ts               # Exports ShapeRouterClient
-│   ├── ShapeRouterClient.ts    # API client class (~1670 lines, ~50 methods)
-│   └── ShapeRouterClient.test.ts
-└── utils/
-    ├── index.ts               # Exports all utilities
-    ├── shaperouter-helpers.ts  # Headers, URLs, errors, query strings
-    └── shaperouter-helpers.test.ts
-```
-
-## Commands
+## Commands (all defined in package.json)
 
 ```bash
-bun run build        # Build to dist/ (tsc)
-bun run build:watch  # Watch mode build
-bun run clean        # Remove dist/
-bun run test         # Run tests once (vitest run)
-bun run test:watch   # Watch mode (vitest)
-bun run lint         # Run ESLint
-bun run lint:fix     # Fix ESLint issues
-bun run typecheck    # TypeScript check (--noEmit)
-bun run format       # Format with Prettier
-bun run format:check # Check formatting
-bun run verify       # Full pre-commit: typecheck + lint + test + build
+bun install
+bun run build         # tsc -p tsconfig.build.json + node scripts/fix-esm-imports.mjs
+bun run test:unit     # vitest run   (NOTE: there is no `bun run test`)
+bun run test:watch    # vitest watch
+bun run typecheck     # tsc --noEmit
+bun run lint          # eslint src --ext .ts,.tsx
+bun run format        # prettier --write
+bun run verify        # typecheck + lint + test:unit + build  (pre-commit gate)
 ```
-
-## Hooks
-
-| Hook | Purpose | Scope | Methods |
-| ---- | ------- | ----- | ------- |
-| `useKeys` | LLM API key management | entitySlug | create, update, delete |
-| `useProjects` | Project CRUD + API key | entitySlug | create, update, delete, getProjectApiKey, refreshProjectApiKey |
-| `useEndpoints` | Endpoint CRUD | entitySlug + projectId | create, update, delete |
-| `useAnalytics` | Usage analytics | entitySlug | (query only) |
-| `useSettings` | User settings | userId | update (optimistic) |
-| `useAiExecute` | AI inference | - | execute, getPrompt |
-| `useEntities` | Entity/org management | - | create, update, delete + members + invitations |
-| `useProviders` | Public provider list | - | (query only) |
-| `useProviderModels` | Models for a provider | providerId | (query only, keepPreviousData) |
-| `useStorageConfig` | Cloud storage config | entitySlug | update (handles 404 gracefully) |
-
-### Hook Signature Pattern
-
-All hooks take the same base parameters:
-
-```typescript
-const result = useKeys(
-  networkClient,   // NetworkClient from @sudobility/di
-  baseUrl,         // API base URL string
-  entitySlug,      // null disables fetching
-  token,           // FirebaseIdToken | null - null disables fetching
-  testMode?,       // Appends ?testMode=true to requests
-  autoFetch?       // Default true; set false to skip initial fetch
-);
-```
-
-### Hook Return Shape
-
-Every hook returns a consistent interface:
-
-```typescript
-interface UseKeysReturn {
-  keys: LlmApiKeySafe[];      // Data (empty array while loading, not null)
-  isLoading: boolean;          // True during query OR mutation
-  error: string | null;        // Coalesced from query or mutation error
-  refetch: () => void;         // Manual cache refresh
-  clearError: () => void;      // Clear mutation errors
-  reset: () => void;           // Remove cache + clear errors
-  createKey: (data) => Promise<BaseResponse<LlmApiKeySafe>>;
-  updateKey: (id, data) => Promise<BaseResponse<LlmApiKeySafe>>;
-  deleteKey: (id) => Promise<BaseResponse<void>>;
-}
-```
-
-## QUERY_KEYS
-
-Defined in `src/types.ts`. Used for TanStack Query cache management:
-
-```typescript
-QUERY_KEYS = {
-  keys: (entitySlug) => ['shaperouter', 'keys', entitySlug],
-  key: (entitySlug, keyId) => ['shaperouter', 'keys', entitySlug, keyId],
-  projects: (entitySlug) => ['shaperouter', 'projects', entitySlug],
-  project: (entitySlug, projectId) => ['shaperouter', 'projects', entitySlug, projectId],
-  endpoints: (entitySlug, projectId) => ['shaperouter', 'endpoints', entitySlug, projectId],
-  endpoint: (...) => ['shaperouter', 'endpoints', entitySlug, projectId, endpointId],
-  analytics: (entitySlug) => ['shaperouter', 'analytics', entitySlug],
-  settings: (userId) => ['shaperouter', 'settings', userId],
-  storageConfig: (entitySlug) => ['shaperouter', 'storageConfig', entitySlug],
-  entities: () => ['shaperouter', 'entities'],
-  entity: (entitySlug) => ['shaperouter', 'entities', entitySlug],
-  entityMembers: (entitySlug) => ['shaperouter', 'entities', entitySlug, 'members'],
-  entityInvitations: (entitySlug) => ['shaperouter', 'entities', entitySlug, 'invitations'],
-  myInvitations: () => ['shaperouter', 'invitations', 'mine'],
-  rateLimitsConfig: (userId) => ['shaperouter', 'rateLimits', userId, 'config'],
-  rateLimitsHistory: (userId) => ['shaperouter', 'rateLimits', userId, 'history'],
-  providers: () => ['shaperouter', 'providers'],
-  provider: (providerId) => ['shaperouter', 'providers', providerId],
-  providerModels: (providerId) => ['shaperouter', 'providers', providerId, 'models'],
-}
-```
-
-## ShapeRouterClient
-
-The `ShapeRouterClient` class (~1670 lines) provides all API methods. Hooks delegate to this class internally. Direct usage is rare but possible:
-
-```typescript
-import { ShapeRouterClient } from '@sudobility/shaperouter_client';
-
-const client = new ShapeRouterClient(networkClient, baseUrl);
-const response = await client.getProjects(entitySlug, token);
-```
-
-## Code Patterns
-
-### TanStack Query Configuration
-
-- `staleTime`: 5 minutes (data stays fresh)
-- `gcTime`: 30 minutes (keep in garbage-collectable cache)
-- `enabled`: Auto-disabled when params are null (`!!entitySlug && !!token`)
-- `retry: false` in tests
-
-### Null-Gated Parameters
-
-Hooks accept `null` for `entitySlug`, `token`, and `projectId` to conditionally disable fetching:
-
-```typescript
-// Won't fetch until both are non-null
-const { keys } = useKeys(networkClient, baseUrl, entitySlug, token);
-```
-
-### Stable Empty Arrays
-
-Each hook defines module-level constants to prevent unnecessary re-renders:
-
-```typescript
-const EMPTY_KEYS: LlmApiKeySafe[] = [];
-// Used as: keys = queryData ?? EMPTY_KEYS
-```
-
-### Error Handling
-
-```typescript
-import { ShapeRouterApiError } from '@sudobility/shaperouter_client';
-
-// Thrown by network calls
-class ShapeRouterApiError extends Error {
-  statusCode: number;
-  errorCode?: string;
-  details?: unknown;
-}
-
-// In hooks: error is coalesced from query or mutation
-const error = queryError?.message ?? mutationError?.message ?? null;
-```
-
-### Mutation Cache Invalidation
-
-CRUD mutations auto-invalidate relevant query caches on success:
-
-```typescript
-onSuccess: () => {
-  queryClient.invalidateQueries({ queryKey: QUERY_KEYS.keys(entitySlug) });
-}
-```
-
-Exception: `useSettings` uses `queryClient.setQueryData()` for optimistic updates instead.
-
-## Exports
-
-From `@sudobility/shaperouter_client`:
-
-```typescript
-// Network
-export { ShapeRouterClient }
-
-// Hooks + return types
-export { useKeys, UseKeysReturn }
-export { useProjects, UseProjectsReturn }
-export { useEndpoints, UseEndpointsReturn }
-export { useAnalytics, UseAnalyticsReturn }
-export { useSettings, UseSettingsReturn }
-export { useAiExecute, UseAiExecuteReturn, AiResult }
-export { useEntities, UseEntitiesReturn }
-export { useProviders, UseProvidersReturn }
-export { useProviderModels, UseProviderModelsReturn }
-export { useStorageConfig, UseStorageConfigReturn }
-
-// Utils
-export { ShapeRouterApiError, createAuthHeaders, createHeaders,
-         buildUrl, handleApiError, buildQueryString }
-
-// Types
-export { FirebaseIdToken, QUERY_KEYS }
-```
-
-## Testing
-
-### Test Setup
-
-```typescript
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MockNetworkClient } from '@sudobility/di/mocks';
-
-const mockNetworkClient = new MockNetworkClient();
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-    mutations: { retry: false },
-  },
-});
-
-const wrapper = ({ children }: { children: React.ReactNode }) => (
-  <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-);
-```
-
-### Test Pattern
-
-```typescript
-describe("useKeys", () => {
-  beforeEach(() => {
-    queryClient.clear();
-    mockNetworkClient.reset();
-  });
-
-  it("should fetch keys", async () => {
-    mockNetworkClient.setMockResponse(
-      `${baseUrl}/api/v1/entities/my-org/keys`,
-      { ok: true, data: { success: true, data: mockKeys } },
-      "GET"
-    );
-
-    const { result } = renderHook(
-      () => useKeys(mockNetworkClient, baseUrl, "my-org", mockToken),
-      { wrapper }
-    );
-
-    await waitFor(() => expect(result.current.keys).toEqual(mockKeys));
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.error).toBeNull();
-  });
-});
-```
-
-## Task Recipes
-
-### Adding a New Hook
-
-1. Create `src/hooks/useMyThing.ts`
-2. Follow the hook signature pattern: `(networkClient, baseUrl, scopeParam, token, testMode?, autoFetch?)`
-3. Return the standard shape: `{ data, isLoading, error, refetch, clearError, reset, ...mutations }`
-4. Add query key(s) to `QUERY_KEYS` in `src/types.ts`
-5. Add corresponding methods to `ShapeRouterClient` in `src/network/ShapeRouterClient.ts`
-6. Export from `src/hooks/index.ts` and `src/index.ts`
-7. Create `src/hooks/useMyThing.test.ts` following the test pattern above
-8. Use `EMPTY_X` constant for stable empty array default
-
-### Adding a Method to ShapeRouterClient
-
-1. Add the method to `src/network/ShapeRouterClient.ts`
-2. Use `this.networkClient.request()` for HTTP calls
-3. Use `createAuthHeaders(token)` for authenticated endpoints
-4. Return `BaseResponse<T>` for consistency
-5. Add test cases in `ShapeRouterClient.test.ts`
-
-## Peer Dependencies
-
-Required in consuming app:
-
-- `react` >= 18.0.0
-- `@tanstack/react-query` >= 5.0.0
-- `@sudobility/shaperouter_types` - Type definitions
-- `@sudobility/types` - Common types
-- `@sudobility/di` - NetworkClient interface
 
 ## Architecture
 
 ```
-shaperouter_client (this package)
-    ^
-shaperouter_lib (business logic, Zustand stores)
-    ^
-shaperouter_app (frontend)
+src/
+  index.ts        # public barrel: re-exports network, hooks, utils, local types
+  types.ts        # FirebaseIdToken, UserApiKey* types, QUERY_KEYS constant
+  network/
+    ShapeRouterClient.ts   # API class, large (~1900 lines, ~50 async methods)
+  hooks/          # one hook per resource (see table below)
+  utils/
+    shaperouter-helpers.ts # ShapeRouterApiError, header/url/query/error helpers
 ```
 
-## Workspace Context
+Hooks delegate to `ShapeRouterClient` internally; the client calls
+`networkClient.get/post/...`. All HTTP goes through a `NetworkClient` interface
+(from `@sudobility/di`) that the caller injects — this is what makes everything
+mockable in tests (`MockNetworkClient` from `@sudobility/di/mocks`).
 
-This project is part of the **ShapeRouter** multi-project workspace at the parent directory. See `../CLAUDE.md` for the full architecture, dependency graph, and build order.
+Hooks: `useKeys`, `useProjects`, `useEndpoints`, `useAnalytics`, `useSettings`,
+`useUserApiKeys`, `useAiExecute`, `useEntities`, `useProviders` /
+`useProviderModels`, `useStorageConfig`.
 
-## Downstream Impact
+## Key conventions (do not break — downstream wrappers depend on them)
 
-| Downstream Consumer | Relationship |
-| ------------------- | ------------ |
-| `shaperouter_lib` | Direct peer dependency - wraps these hooks with Zustand stores |
-| `shaperouter_app` | Transitive via shaperouter_lib |
+- **Hook signature**: `(networkClient, baseUrl, scopeParam, token, options?)` where
+  `options` is `{ testMode?: boolean; enabled?: boolean }`. There is NO positional
+  `testMode`/`autoFetch` argument — those live inside `options`.
+- **Client constructor** takes one options object:
+  `new ShapeRouterClient({ baseUrl, networkClient, testMode? })`.
+- **Return shape** is consistent across hooks: data (named per hook, e.g. `keys`),
+  `isLoading`, `error: string | null`, `refetch` (no args), `clearError`, `reset`,
+  plus CRUD methods. The method is `refetch`, not `refresh`.
+- **Mutations return `BaseResponse<T>` and do not throw**; they auto-invalidate the
+  relevant `QUERY_KEYS` cache on success.
+- **Null-gated fetching**: passing `null` for a scope param (`entitySlug`,
+  `projectId`) or `token` sets `enabled: false`. Intentional.
+- **Stable empty defaults**: each hook has a module-level `EMPTY_X` constant used as
+  the data default. Do not inline `[]` — it causes re-renders.
+- `ShapeRouterClient` methods throw `ShapeRouterApiError` on non-ok responses;
+  hooks translate that into the `error` string.
 
-After making changes:
+## Adding a hook / client method
 
-1. `bun run verify`
-2. `npm publish`
-3. In `shaperouter_lib`: `bun update @sudobility/shaperouter_client` -> rebuild
-4. In `shaperouter_app`: `bun update @sudobility/shaperouter_client` -> rebuild
-
-## Local Dev Workflow
-
-```bash
-# In this project:
-bun link
-
-# In shaperouter_lib:
-bun link @sudobility/shaperouter_client
-
-# Rebuild after changes:
-bun run build
-
-# When done, unlink:
-bun unlink @sudobility/shaperouter_client && bun install
-```
-
-## Pre-Commit Checklist
-
-```bash
-bun run verify
-```
-
-This runs: `typecheck && lint && test && build`.
-
-## Publishing
-
-```bash
-bun run prepublishOnly  # Clean + build
-npm publish             # Publish to npm (must use npm, not bun)
-```
+1. Add query key(s) to `QUERY_KEYS` in `src/types.ts`.
+2. Add the method(s) to `ShapeRouterClient` (use `createAuthHeaders(token)` for
+   authed routes; return `BaseResponse<T>`).
+3. Create `src/hooks/useX.ts` following the signature + return-shape conventions;
+   add a module-level `EMPTY_X` default.
+4. Export from `src/hooks/index.ts` and (transitively) `src/index.ts`.
+5. Add `src/hooks/useX.test.ts` using `MockNetworkClient` + a
+   `QueryClientProvider` wrapper with `retry: false`.
 
 ## Gotchas
 
-- **`publishConfig.access` is `"restricted"`** -- this is intentionally a private npm package.
-- **Hooks use `networkClient`, not direct fetch** -- all HTTP goes through a `NetworkClient` interface from `@sudobility/di`. This enables mocking in tests.
-- **Hooks return consistent `{ data, isLoading, error, refetch, clearError, reset }` pattern** -- `shaperouter_lib` manager hooks depend on this exact shape. Do not change it.
-- **`bun run test` runs tests once** -- use `bun run test:watch` for watch mode during development.
-- **Null params disable fetching** -- passing `null` for `entitySlug` or `token` sets `enabled: false` on the query. This is intentional for conditional fetching.
-- **`useAiExecute` does NOT cache** -- each call is a fresh mutation. Parameters are path-based (`organizationPath`, `projectName`, `endpointName`), not UUIDs.
-- **`useSettings` uses optimistic updates** -- `setQueryData()` instead of `invalidateQueries()` for faster UX.
-- **`useStorageConfig` handles 404 gracefully** -- returns null instead of throwing when no config exists.
-- **`useProviderModels` uses `keepPreviousData`** -- prevents content flash when switching between providers.
-- **Stable empty arrays prevent re-renders** -- each hook has a module-level `EMPTY_X` constant. Do not inline `[]` as a default.
-- **Entity vs user scoping** -- keys/projects/endpoints/storage are entity-scoped; analytics/settings are user-scoped; providers are global.
-
-## Git Workflow
-
-- Do not use feature branches for code changes. Always stay on the current branch.
+- **Published to GitHub Packages**, not public npm. `.npmrc` sets
+  `@sudobility:registry=https://npm.pkg.github.com`; `publishConfig.access` is
+  `"public"`. Publishing is done by CI (`.github/workflows/ci-cd.yml`,
+  `publish-target: github`) on push to `main`/`develop` — not by a local
+  `npm publish`.
+- **ESM build needs the fixup script**: `tsc` under `moduleResolution: "bundler"`
+  emits extensionless relative imports; `scripts/fix-esm-imports.mjs` rewrites them
+  to explicit `.js` so Node's ESM loader resolves them. `build` runs both steps.
+- `useAiExecute` is mutation-only (no caching); params are path-based
+  (`organizationPath` / `projectName` / `endpointName`), not UUIDs.
+- `useSettings` uses optimistic updates (`setQueryData`) instead of invalidation.
+- `useStorageConfig` returns null (not throw) on 404.
+- `useProviderModels` uses `keepPreviousData` to avoid flashing on provider switch.
+- Scoping: keys/projects/endpoints/storage are entity-scoped; analytics/settings/
+  userApiKeys are user-scoped; providers are global/public (no auth).
+- `src/types.ts` temporarily redeclares `UserApiKey` / `UserApiKeyCreated` /
+  `CurrentUser` (see TODO there) until the types package ships them; prefer the
+  types package once available.
